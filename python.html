@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>파이썬 에디터</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+  <style>
+    body { font-family: monospace; background: #1e1e1e; color: white; padding: 20px; }
+    textarea { width: 100%; height: 300px; background: #252526; color: #d4d4d4; font-size: 16px; border: none; padding: 10px; }
+    button { padding: 10px 20px; margin-top: 10px; background: #0e639c; color: white; border: none; cursor: pointer; }
+    pre { background: #333; padding: 10px; overflow: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>파이썬 에디터</h1>
+  <a href="terminal.html" style="color:white;">터미널 스타일 에디터 열기</a>
+  <textarea id="code">print("Hello Python")</textarea>
+  <br />
+  <button onclick="runPython()">코드 실행</button>
+  <h2>결과:</h2>
+  <pre id="output">로딩중...</pre>
+
+  <script>
+    let pyodideReady = false;
+    let pyodide;
+
+    async function loadPyodideAndPackages() {
+      pyodide = await loadPyodide();
+      pyodideReady = true;
+      document.getElementById("output").textContent = "로딩 완료";
+    }
+
+    async function runPython() {
+      if (!pyodideReady) {
+        document.getElementById("output").textContent = "아직 로딩이 되지 않았습니다...";
+        return;
+      }
+
+      const code = document.getElementById("code").value;
+
+      try {
+        // 출력 가로채기용 Python 코드
+        await pyodide.runPythonAsync(`
+import sys
+from io import StringIO
+sys.stdout = mystdout = StringIO()
+sys.stderr = mystderr = StringIO()
+        `);
+
+        await pyodide.runPythonAsync(code);
+
+        const stdout = pyodide.runPython("mystdout.getvalue()");
+        const stderr = pyodide.runPython("mystderr.getvalue()");
+
+        document.getElementById("output").textContent = stdout + (stderr ? `\n[stderr]\n${stderr}` : "");
+      } catch (err) {
+        document.getElementById("output").textContent = "JavaScript error:\n" + err;
+      }
+    }
+
+    loadPyodideAndPackages();
+  </script>
+</body>
+</html>
