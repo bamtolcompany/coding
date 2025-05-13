@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>파이썬 터미널 스타일 에디터</title>
+  <style>
+    body {
+      background-color: #1e1e1e;
+      color: white;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+    }
+    #console {
+      white-space: pre-wrap;
+      overflow-y: auto;
+      min-height: 90vh;
+    }
+    .line {
+      display: flex;
+    }
+    .prompt {
+      color: #00ff00;
+    }
+    .input {
+      color: white;
+      background: none;
+      border: none;
+      outline: none;
+      font: inherit;
+      width: 100%;
+    }
+    .output {
+      margin-left: 3ch;
+      color: white;
+    }
+    .error {
+      margin-left: 3ch;
+      color: tomato;
+    }
+  </style>
+</head>
+<body>
+  <button><a href="python.html" style="color:black;">일반 에디터 열기</a></button>
+  <div id="console">
+    <div class="line">
+      <span class="prompt">>>> </span>
+      <input type="text" class="input" autofocus onkeydown="handleKey(event)" />
+    </div>
+  </div>
+
+  <script>
+    const consoleEl = document.getElementById("console");
+
+    function handleKey(e) {
+      if (e.key === "Enter") {
+        const inputEl = e.target;
+        const inputValue = inputEl.value;
+
+        // 기존 입력 라인을 텍스트로 변환
+        const lineDiv = inputEl.parentElement;
+        lineDiv.innerHTML = `<span class="prompt">>>> </span>${inputValue}`;
+
+        // 결과 출력
+        try {
+          const result = eval(inputValue);
+          if (result !== undefined) {
+            const outputEl = document.createElement("div");
+            outputEl.className = "output";
+            outputEl.textContent = result;
+            consoleEl.appendChild(outputEl);
+          }
+        } catch (err) {
+          const errorEl = document.createElement("div");
+          errorEl.className = "error";
+          errorEl.textContent = err;
+          consoleEl.appendChild(errorEl);
+        }
+
+        // 새로운 입력 줄 생성
+        const newLine = document.createElement("div");
+        newLine.className = "line";
+        newLine.innerHTML = `<span class="prompt">>>> </span><input type="text" class="input" onkeydown="handleKey(event)" autofocus />`;
+        consoleEl.appendChild(newLine);
+
+        // 맨 아래로 스크롤
+        newLine.querySelector("input").focus();
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+      }
+    }
+  </script>
+</body>
+</html>
