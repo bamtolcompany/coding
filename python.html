@@ -5,18 +5,71 @@
   <title>파이썬 에디터</title>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
   <style>
+  .hidden {
+  display: none;
+}
+#toggleBtn {
+  background: none;
+  color: #0e90d2;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 10px;
+}
+#toggleBtn:hover {
+  text-decoration: underline;
+}
     body { font-family: monospace; background: #1e1e1e; color: white; padding: 20px; }
     textarea { width: 100%; height: 300px; background: #252526; color: #d4d4d4; font-size: 16px; border: none; padding: 10px; }
     button { padding: 10px 20px; margin-top: 10px; background: #0e639c; color: white; border: none; cursor: pointer; }
     pre { background: #333; padding: 10px; overflow: auto; white-space: pre-wrap; }
+ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 10px;
+  max-width: 600px;
+}
+li {
+  background: #2d2d2d;
+  padding: 10px 15px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s;
+}
+li:hover {
+  background: #3a3a3a;
+}
+.filename {
+  font-size: 16px;
+  cursor: pointer;
+}
+.trash {
+  font-size: 16px;
+  cursor: pointer;
+  color: #ff5c5c;
+  transition: color 0.2s;
+}
+.trash:hover {
+  color: #ff1f1f;
+}
   </style>
 </head>
 <body>
   <h1>파이썬 에디터</h1>
-  <a href="terminal.html" style="color:white;">터미널 스타일 에디터 열기</a>
-  <textarea id="code">print("Hello Python")</textarea>
-  <br />
+  <a href="terminal.html" style="color:white;">터미널 스타일 에디터 열기</a><br /><br />
+  <textarea id="code">print("Hello Python")</textarea><br />
+
   <button onclick="runPython()">코드 실행</button>
+  <button onclick="saveCode()">코드 저장</button>
+
+<h2>
+  저장된 코드:
+  <button onclick="toggleCodeList()" id="toggleBtn">숨기기</button>
+</h2>
+<ul id="codeList"></ul>
   <h2>결과:</h2>
   <pre id="output">로딩중...</pre>
 
@@ -39,7 +92,6 @@
       const code = document.getElementById("code").value;
 
       try {
-        // 출력 가로채기용 Python 코드
         await pyodide.runPythonAsync(`
 import sys
 from io import StringIO
@@ -58,7 +110,68 @@ sys.stderr = mystderr = StringIO()
       }
     }
 
+    function saveCode() {
+      const name = prompt("파일 이름을 입력하세요:");
+      if (!name) return;
+
+      const code = document.getElementById("code").value;
+      localStorage.setItem(`code_${name}`, code);
+      alert("저장 완료!");
+      loadCodeList();
+    }
+
+    function loadCodeList() {
+  const list = document.getElementById("codeList");
+  list.innerHTML = "";
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith("code_")) {
+      const filename = key.replace("code_", "");
+      const li = document.createElement("li");
+
+      const span = document.createElement("span");
+      span.className = "filename";
+      span.textContent = filename;
+
+      const trash = document.createElement("span");
+      trash.className = "trash";
+      trash.textContent = "🗑️";
+      trash.title = "삭제";
+
+      trash.onclick = function (e) {
+        e.stopPropagation(); // 삭제 클릭 시 부모(li) 클릭 안 되게 막음
+        if (confirm(`${filename}을(를) 삭제할까요?`)) {
+          localStorage.removeItem(key);
+          loadCodeList();
+        }
+      };
+
+      // li 클릭 시 코드 로드 (휴지통 누른 게 아닐 때만)
+      li.onclick = function () {
+        document.getElementById("code").value = localStorage.getItem(key);
+      };
+
+      li.appendChild(span);
+      li.appendChild(trash);
+      list.appendChild(li);
+    }
+  }
+}
     loadPyodideAndPackages();
+    loadCodeList();
+  function toggleCodeList() {
+  const list = document.getElementById("codeList");
+  const btn = document.getElementById("toggleBtn");
+
+  if (list.classList.contains("hidden")) {
+    list.classList.remove("hidden");
+    btn.textContent = "숨기기";
+  } else {
+    list.classList.add("hidden");
+    btn.textContent = "보이기";
+  }
+}
   </script>
 </body>
 </html>
