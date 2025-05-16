@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Minecraft</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+  // ----- 기본 설정 -----
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // ----- 조명 -----
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(10, 20, 10);
+  scene.add(light);
+
+  // ----- 바닥 블록 생성 -----
+  const blockSize = 1;
+  const blocks = [];
+  const blockMaterial = new THREE.MeshLambertMaterial({ color: 0x55ff55 });
+  const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+
+  for (let x = -10; x <= 10; x++) {
+    for (let z = -10; z <= 10; z++) {
+      const block = new THREE.Mesh(geometry, blockMaterial.clone());
+      block.position.set(x, -1, z);
+      scene.add(block);
+      blocks.push(block);
+    }
+  }
+
+  // ----- 컨트롤 -----
+  const controls = (() => {
+    const pitch = new THREE.Object3D();
+    pitch.add(camera);
+
+    const yaw = new THREE.Object3D();
+    yaw.position.y = 2;
+    yaw.add(pitch);
+    scene.add(yaw);
+
+    let isLocked = false;
+    document.body.addEventListener('click', () => document.body.requestPointerLock());
+    document.addEventListener('pointerlockchange', () => {
+      isLocked = document.pointerLockElement === document.body;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isLocked) return;
+      yaw.rotation.y -= e.movementX * 0.002;
+      pitch.rotation.x -= e.movementY * 0.002;
+      pitch.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch.rotation.x));
+    });
+
+    return {
+      object: yaw,
+      moveForward: (d) => {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        dir.y = 0;
+        dir.normalize();
+        yaw.position.addScaledVector(dir, d);
+      },
+      moveRight: (d) => {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        dir.y = 0;
+        dir.normalize();
+        const right = new THREE.Vector3().crossVectors(dir, camera.up);
+        yaw.position.addScaledVector(right, d);
+      },
+      getDirection: () => {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        return dir;
+      },
+      getPosition: () => yaw.position
+    };
+  })();
+
+  // ----- 이동 & 점프 -----
+  const keys = {};
+  document.addEventListener('keydown', e => keys[e.code] = true);
+  document.addEventListener('keyup', e => keys[e.code] = false);
+
+  let velocityY = 0;
+  let canJump = false;
+
+  // ----- 블록 설치/파괴 -----
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+
+  function interactBlock(event) {
+    if (document.pointerLockElement !== document.body) return;
+
+    raycaster.set(controls.getPosition(), controls.getDirection());
+    const intersects = raycaster.intersectObjects(blocks);
+
+    if (intersects.length > 0) {
+      const target = intersects[0];
+      const position = target.object.position.clone();
+
+      if (event.button === 2) { // 우클릭 = 설치
+        const normal = target.face.normal.clone();
+        position.add(normal);
+        const newBlock = new THREE.Mesh(geometry, blockMaterial.clone());
+        newBlock.position.copy(position);
+        scene.add(newBlock);
+        blocks.push(newBlock);
+      } else if (event.button === 0) { // 좌클릭 = 파괴
+        scene.remove(target.object);
+        const index = blocks.indexOf(target.object);
+        if (index > -1) blocks.splice(index, 1);
+      }
+    }
+  }
+
+  document.addEventListener('mousedown', interactBlock);
+
+  // ----- 메인 루프 -----
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+
+    if (document.pointerLockElement === document.body) {
+      if (keys['KeyW']) controls.moveForward(5 * dt);
+      if (keys['KeyS']) controls.moveForward(-5 * dt);
+      if (keys['KeyA']) controls.moveRight(-5 * dt);
+      if (keys['KeyD']) controls.moveRight(5 * dt);
+
+      velocityY -= 9.8 * dt;
+      controls.object.position.y += velocityY * dt;
+
+      if (controls.object.position.y < 2) {
+        velocityY = 0;
+        controls.object.position.y = 2;
+        canJump = true;
+      }
+
+      if (keys['Space'] && canJump) {
+        velocityY += 5;
+        canJump = false;
+      }
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+</script>
+</body>
+</html>
